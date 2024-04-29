@@ -1,0 +1,86 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "storageaccount": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the storage account."
+      }
+    },
+    "planName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the App Service Plan."
+      }
+    },
+    "webAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the Web App."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The Azure region for deployment."
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-06-01",
+      "name": "[parameters('storageaccount')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "resources": [
+        {
+          "type": "blobServices/containers",
+          "apiVersion": "2019-06-01",
+          "name": "default/output",
+          "dependsOn": [
+            "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageaccount'))]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2020-12-01",
+      "name": "[parameters('planName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "tier": "Standard",
+        "name": "S1",
+        "capacity": 1
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-12-01",
+      "name": "[parameters('webAppName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageaccount'))]"
+      ],
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('planName'))]",
+        "siteConfig": {
+            "appSettings": [
+            {
+                "name": "storageAccessKey",
+                "value": "[listKeys(parameters('storageaccount'), '2019-06-01').keys[0].value]"
+            }
+            ]
+        }
+      }
+    }
+  ]
+}
